@@ -1,0 +1,20 @@
+[
+  {
+    "email": "test@gmail.com",
+    "password": "test@gmail.com1",
+    "id": "13e003e5-25fc-42e8-9b86-e409a14c32ca",
+    "name": "testgmailcom"
+  },
+  {
+    "email": "test2@gmail.com",
+    "password": "test@gmail.c2",
+    "id": "e3ebd3f1-7d47-4b36-a182-3dd289c2bcd0",
+    "name": "testgmail"
+  },
+  {
+    "email": "arsenij633@gmail.com",
+    "password": "arsenij633@gmail.com",
+    "id": "20375c1e-ab58-4f8e-847c-603658e63de0",
+    "name": "arsenijgmailcom"
+  }
+]

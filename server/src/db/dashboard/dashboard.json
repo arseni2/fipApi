@@ -1,0 +1,114 @@
+[
+  {
+    "id": "73eb473b-3718-4ad6-b146-928a4a2f05d3",
+    "title": "123",
+    "ownerId": "13e003e5-25fc-42e8-9b86-e409a14c32ca",
+    "editors": [],
+    "likes": 6,
+    "publicHash": "bkhDcEJ37jwZ"
+  },
+  {
+    "id": "ea9234b8-43db-4430-a077-412ce2153ba4",
+    "title": "test",
+    "ownerId": "13e003e5-25fc-42e8-9b86-e409a14c32ca",
+    "editors": [],
+    "likes": 0
+  },
+  {
+    "id": "292d702f-ea00-47ac-9397-b18256e548d6",
+    "title": "test",
+    "ownerId": "13e003e5-25fc-42e8-9b86-e409a14c32ca",
+    "editors": [],
+    "likes": 3,
+    "publicHash": "bf1Cbkx6DhO0"
+  },
+  {
+    "id": "efb0f7b7-f0ac-480a-a4e1-ab343c6a707a",
+    "title": "test123",
+    "ownerId": "e3ebd3f1-7d47-4b36-a182-3dd289c2bcd0",
+    "editors": [
+      "20375c1e-ab58-4f8e-847c-603658e63de0"
+    ],
+    "likes": 4,
+    "objects": [
+      {
+        "id": "obj-1769444491181",
+        "type": "text",
+        "x": 100,
+        "y": 100,
+        "width": 120,
+        "height": 30,
+        "rotation": 0,
+        "content": "Текст",
+        "lockedBy": "current_user_id"
+      },
+      {
+        "id": "obj-1769444499529",
+        "type": "rectangle",
+        "x": 300,
+        "y": 100,
+        "width": 100,
+        "height": 80,
+        "rotation": 0,
+        "color": "#3b82f6",
+        "lockedBy": "current_user_id"
+      },
+      {
+        "id": "obj-1769444501929",
+        "type": "circle",
+        "x": 198,
+        "y": 297,
+        "width": 80,
+        "height": 80,
+        "rotation": 0,
+        "color": "#ef4444",
+        "lockedBy": "current_user_id"
+      },
+      {
+        "id": "obj-1769445761969",
+        "type": "circle",
+        "x": 994,
+        "y": 303,
+        "width": 80,
+        "height": 80,
+        "rotation": 0,
+        "color": "#ef4444",
+        "lockedBy": "current_user_id"
+      },
+      {
+        "id": "obj-1769445773831",
+        "type": "text",
+        "x": 326,
+        "y": 243,
+        "width": 120,
+        "height": 30,
+        "rotation": 0,
+        "content": "Текст",
+        "lockedBy": "current_user_id"
+      },
+      {
+        "id": "obj-1769445786935",
+        "type": "circle",
+        "x": 807,
+        "y": 128,
+        "width": 80,
+        "height": 80,
+        "rotation": 0,
+        "color": "#ef4444",
+        "lockedBy": "current_user_id"
+      },
+      {
+        "id": "obj-1769445941962",
+        "type": "rectangle",
+        "x": 486,
+        "y": 109,
+        "width": 100,
+        "height": 80,
+        "rotation": 0,
+        "color": "#3b82f6",
+        "lockedBy": "current_user_id"
+      }
+    ],
+    "publicHash": "uKyaK3h8Z4Sk"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "extends": "fastify-tsconfig",
+  "compilerOptions": {
+    "outDir": "dist",
+    "sourceMap": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/*.ts",
+    "src/**/**/*.ts",
+    "src/**/**/**/*.ts",
+    "*.ts"
+  ]
+}
