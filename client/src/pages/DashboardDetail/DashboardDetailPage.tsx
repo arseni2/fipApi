@@ -1,10 +1,11 @@
 // src/pages/DashboardDetailPage.tsx
-import React, { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getDashboardByIdApi, updateBoardApi } from '../../api/dashboard';
-import { WS_URL } from '../../api/base';
+import React, { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { getDashboardByIdApi, updateBoardApi } from "../../api/dashboard";
+import { WS_URL } from "../../api/base";
+import { getCurrentUser } from "../../api/auth";
 
-type ObjectType = 'text' | 'image' | 'rectangle' | 'circle' | 'line';
+type ObjectType = "text" | "image" | "rectangle" | "circle" | "line";
 
 interface BaseObject {
   id: string;
@@ -18,17 +19,17 @@ interface BaseObject {
 }
 
 interface TextObject extends BaseObject {
-  type: 'text';
+  type: "text";
   content: string;
 }
 
 interface ImageObject extends BaseObject {
-  type: 'image';
+  type: "image";
   url: string;
 }
 
 interface ShapeObject extends BaseObject {
-  type: 'rectangle' | 'circle' | 'line';
+  type: "rectangle" | "circle" | "line";
   color: string;
 }
 
@@ -44,10 +45,10 @@ export const DashboardDetailPage = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<string>('user123'); // В реальном приложении получать из токена
+  const [currentUser, setCurrentUser] = useState<string>("user123"); // В реальном приложении получать из токена
   const [ws, setWs] = useState<WebSocket | null>(null);
   const dragState = useRef<{
-    type: 'move' | 'resize' | 'rotate' | null;
+    type: "move" | "resize" | "rotate" | null;
     startX: number;
     startY: number;
     startWidth: number;
@@ -55,25 +56,43 @@ export const DashboardDetailPage = () => {
     startRotation: number;
     startLeft: number;
     startTop: number;
-  }>({ type: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0, startRotation: 0, startLeft: 0, startTop: 0 });
-
+  }>({
+    type: null,
+    startX: 0,
+    startY: 0,
+    startWidth: 0,
+    startHeight: 0,
+    startRotation: 0,
+    startLeft: 0,
+    startTop: 0,
+  });
+  console.log(currentUser)
   // Инициализация WebSocket соединения
   useEffect(() => {
     if (!id) return;
 
     // Получаем ID текущего пользователя из токена
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!token) {
-      navigate('/signin');
+      navigate("/signin");
       return null;
     }
 
-    // В реальном приложении нужно расшифровать токен, чтобы получить ID пользователя
-    // Для простоты сейчас используем фиктивный ID, но в продакшене нужно декодировать JWT
-    // Пример декодирования JWT: const payload = JSON.parse(atob(token.split('.')[1]));
-    // setCurrentUser(payload.userId);
-    setCurrentUser('current_user_id');
+    const fetchCurrentUser = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/signin");
+        return;
+      }
 
+      try {
+        const response = await getCurrentUser()
+        setCurrentUser(response.id); // Предполагается, что в ответе есть поле `id`
+      } catch (error) {
+        console.error("Ошибка при получении данных пользователя:", error);
+      }
+    };
+    fetchCurrentUser();
     // Загружаем доску
     const loadDashboard = async () => {
       try {
@@ -82,7 +101,7 @@ export const DashboardDetailPage = () => {
           setObjects(dashboard.objects || []);
         }
       } catch (err) {
-        setError('Не удалось загрузить доску');
+        setError("Не удалось загрузить доску");
         console.error(err);
       } finally {
         setLoading(false);
@@ -96,7 +115,7 @@ export const DashboardDetailPage = () => {
     const websocket = new WebSocket(wsUrl);
 
     websocket.onopen = () => {
-      console.log('WebSocket connected');
+      console.log("WebSocket connected");
       setWs(websocket);
     };
 
@@ -105,16 +124,16 @@ export const DashboardDetailPage = () => {
         const message = JSON.parse(event.data);
         handleWebSocketMessage(message);
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error("Error parsing WebSocket message:", error);
       }
     };
 
     websocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error("WebSocket error:", error);
     };
 
     websocket.onclose = () => {
-      console.log('WebSocket disconnected');
+      console.log("WebSocket disconnected");
       setWs(null);
     };
 
@@ -125,29 +144,33 @@ export const DashboardDetailPage = () => {
   }, [id, navigate, currentUser]);
 
   // Обработка сообщений от WebSocket
-  const handleWebSocketMessage = (message: any) => {
-    switch (message.type) {
-      case 'boardUpdate':
-        setObjects(message.objects);
-        break;
-      case 'objectFocus':
-        setObjects(prev =>
-          prev.map(obj =>
-            obj.id === message.objectId ? { ...obj, lockedBy: message.userId } : obj
-          )
-        );
-        break;
-      case 'objectBlur':
-        setObjects(prev =>
-          prev.map(obj =>
-            obj.id === message.objectId ? { ...obj, lockedBy: undefined } : obj
-          )
-        );
-        break;
-      default:
-        break;
-    }
-  };
+const handleWebSocketMessage = (message: any) => {
+  switch (message.type) {
+    case "boardUpdate":
+      setObjects(message.objects);
+      break;
+    case "objectFocus":
+      // Обновляем объект, установив lockedBy для другого пользователя
+      setObjects((prev) =>
+        prev.map((obj) =>
+          obj.id === message.objectId
+            ? { ...obj, lockedBy: message.userId } // Устанавливаем ID пользователя, который в фокусе
+            : obj,
+        ),
+      );
+      break;
+    case "objectBlur":
+      // Снимаем фокус с объекта
+      setObjects((prev) =>
+        prev.map((obj) =>
+          obj.id === message.objectId ? { ...obj, lockedBy: undefined } : obj,
+        ),
+      );
+      break;
+    default:
+      break;
+  }
+};
 
   // Отправка сообщения через WebSocket
   const sendWebSocketMessage = (message: any) => {
@@ -163,7 +186,7 @@ export const DashboardDetailPage = () => {
     try {
       await updateBoardApi({ id, objects: updatedObjects });
     } catch (error) {
-      console.error('Failed to update board:', error);
+      console.error("Failed to update board:", error);
     }
   };
 
@@ -172,20 +195,65 @@ export const DashboardDetailPage = () => {
     let obj: BoardObject;
 
     switch (type) {
-      case 'text':
-        obj = { id, type, x: 100, y: 100, width: 120, height: 30, rotation: 0, content: 'Текст' };
+      case "text":
+        obj = {
+          id,
+          type,
+          x: 100,
+          y: 100,
+          width: 120,
+          height: 30,
+          rotation: 0,
+          content: "Текст",
+        };
         break;
-      case 'image':
-        obj = { id, type, x: 200, y: 200, width: 200, height: 150, rotation: 0, url: 'https://via.placeholder.com/200x150?text=Img' };
+      case "image":
+        obj = {
+          id,
+          type,
+          x: 200,
+          y: 200,
+          width: 200,
+          height: 150,
+          rotation: 0,
+          url: "https://via.placeholder.com/200x150?text=Img",
+        };
         break;
-      case 'rectangle':
-        obj = { id, type, x: 300, y: 100, width: 100, height: 80, rotation: 0, color: '#3b82f6' };
+      case "rectangle":
+        obj = {
+          id,
+          type,
+          x: 300,
+          y: 100,
+          width: 100,
+          height: 80,
+          rotation: 0,
+          color: "#3b82f6",
+        };
         break;
-      case 'circle':
-        obj = { id, type, x: 400, y: 200, width: 80, height: 80, rotation: 0, color: '#ef4444' };
+      case "circle":
+        obj = {
+          id,
+          type,
+          x: 400,
+          y: 200,
+          width: 80,
+          height: 80,
+          rotation: 0,
+          color: "#ef4444",
+        };
         break;
-      case 'line':
-        obj = { id, type, x: 500, y: 100, width: 150, height: 2, rotation: 0, color: '#10b981' };
+      case "line":
+        obj = {
+          id,
+          type,
+          x: 500,
+          y: 100,
+          width: 150,
+          height: 2,
+          rotation: 0,
+          color: "#10b981",
+        };
         break;
       default:
         return;
@@ -196,9 +264,9 @@ export const DashboardDetailPage = () => {
 
     // Отправляем обновление через WebSocket
     sendWebSocketMessage({
-      type: 'boardUpdate',
+      type: "boardUpdate",
       objects: newObjects,
-      userId: currentUser
+      userId: currentUser,
     });
 
     // Отправляем на сервер
@@ -210,147 +278,165 @@ export const DashboardDetailPage = () => {
   };
 
   const updateObject = (id: string, updates: Partial<BoardObject>) => {
-    setObjects(prev =>
-      prev.map(obj =>
+    setObjects((prev) =>
+      prev.map((obj) =>
         obj.id === id
           ? {
-            ...obj,
-            ...updates,
-            x: Math.max(0, Math.min(CANVAS_WIDTH - (updates.width ?? obj.width), updates.x ?? obj.x)),
-            y: Math.max(0, Math.min(CANVAS_HEIGHT - (updates.height ?? obj.height), updates.y ?? obj.y)),
-          }
-          : obj
-      )
+              ...obj,
+              ...updates,
+              x: Math.max(
+                0,
+                Math.min(
+                  CANVAS_WIDTH - (updates.width ?? obj.width),
+                  updates.x ?? obj.x,
+                ),
+              ),
+              y: Math.max(
+                0,
+                Math.min(
+                  CANVAS_HEIGHT - (updates.height ?? obj.height),
+                  updates.y ?? obj.y,
+                ),
+              ),
+            }
+          : obj,
+      ),
     );
   };
 
   const handleTextDoubleClick = (id: string) => {
-    const obj = objects.find(o => o.id === id) as TextObject | undefined;
-    if (obj && !obj.lockedBy) {
-      const newContent = prompt('Редактировать текст:', obj.content);
-      if (newContent !== null) {
-        const updatedObjects = objects.map(obj =>
-          obj.id === id ? { ...obj, content: newContent } : obj
-        );
-        setObjects(updatedObjects);
+  const obj = objects.find((o) => o.id === id) as TextObject | undefined;
+  // Разрешаем редактирование, если объект не заблокирован ИЛИ заблокирован текущим пользователем
+  if (obj && obj.lockedBy && obj.lockedBy !== currentUser) return;
 
-        // Отправляем обновление через WebSocket
-        sendWebSocketMessage({
-          type: 'boardUpdate',
-          objects: updatedObjects,
-          userId: currentUser
-        });
-
-        // Отправляем на сервер
-        sendBoardUpdate(updatedObjects);
-      }
-    }
-  };
-
-  const handleMoveStart = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const obj = objects.find(o => o.id === id);
-    if (!obj || obj.lockedBy) return;
-
-    // Отправляем сообщение о фокусе на объекте
-    const updatedObjects = objects.map(obj =>
-      obj.id === id ? { ...obj, lockedBy: currentUser } : obj
+  const newContent = prompt("Редактировать текст:", obj.content);
+  if (newContent !== null) {
+    const updatedObjects = objects.map((obj) =>
+      obj.id === id ? { ...obj, content: newContent } : obj,
     );
     setObjects(updatedObjects);
 
     sendWebSocketMessage({
-      type: 'objectFocus',
-      objectId: id,
-      userId: currentUser
+      type: "boardUpdate",
+      objects: updatedObjects,
+      userId: currentUser,
     });
 
-    dragState.current = {
-      type: 'move',
-      startX: e.clientX,
-      startY: e.clientY,
-      startLeft: obj.x,
-      startTop: obj.y,
-      startWidth: 0,
-      startHeight: 0,
-      startRotation: 0,
-    };
-    setSelectedId(id);
+    sendBoardUpdate(updatedObjects);
+  }
+};
+
+const handleMoveStart = (id: string, e: React.MouseEvent) => {
+  e.stopPropagation();
+  const obj = objects.find((o) => o.id === id);
+  // Разрешаем взаимодействие, если объект не заблокирован ИЛИ заблокирован текущим пользователем
+  if (!obj || (obj.lockedBy && obj.lockedBy !== currentUser)) return;
+
+  // Продолжаем выполнение...
+  const updatedObjects = objects.map((obj) =>
+    obj.id === id ? { ...obj, lockedBy: currentUser } : obj,
+  );
+  setObjects(updatedObjects);
+
+  sendWebSocketMessage({
+    type: "objectFocus",
+    objectId: id,
+    userId: currentUser,
+  });
+
+  dragState.current = {
+    type: "move",
+    startX: e.clientX,
+    startY: e.clientY,
+    startLeft: obj.x,
+    startTop: obj.y,
+    startWidth: 0,
+    startHeight: 0,
+    startRotation: 0,
   };
+  setSelectedId(id);
+};
 
   const handleResizeStart = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const obj = objects.find(o => o.id === id);
-    if (!obj || obj.lockedBy) return;
+  e.stopPropagation();
+  const obj = objects.find((o) => o.id === id);
+  if (!obj || (obj.lockedBy && obj.lockedBy !== currentUser)) return;
 
-    // Отправляем сообщение о фокусе на объекте
-    const updatedObjects = objects.map(obj =>
-      obj.id === id ? { ...obj, lockedBy: currentUser } : obj
-    );
-    setObjects(updatedObjects);
+  // Продолжаем выполнение...
+  const updatedObjects = objects.map((obj) =>
+    obj.id === id ? { ...obj, lockedBy: currentUser } : obj,
+  );
+  setObjects(updatedObjects);
 
-    sendWebSocketMessage({
-      type: 'objectFocus',
-      objectId: id,
-      userId: currentUser
-    });
+  sendWebSocketMessage({
+    type: "objectFocus",
+    objectId: id,
+    userId: currentUser,
+  });
 
-    dragState.current = {
-      type: 'resize',
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: obj.width,
-      startHeight: obj.height,
-      startLeft: obj.x,
-      startTop: obj.y,
-      startRotation: 0,
-    };
-    setSelectedId(id);
+  dragState.current = {
+    type: "resize",
+    startX: e.clientX,
+    startY: e.clientY,
+    startWidth: obj.width,
+    startHeight: obj.height,
+    startLeft: obj.x,
+    startTop: obj.y,
+    startRotation: 0,
   };
+  setSelectedId(id);
+};
 
-  const handleRotateStart = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const obj = objects.find(o => o.id === id);
-    if (!obj || obj.lockedBy) return;
+const handleRotateStart = (id: string, e: React.MouseEvent) => {
+  e.stopPropagation();
+  const obj = objects.find((o) => o.id === id);
+  if (!obj || (obj.lockedBy && obj.lockedBy !== currentUser)) return;
 
-    // Отправляем сообщение о фокусе на объекте
-    const updatedObjects = objects.map(obj =>
-      obj.id === id ? { ...obj, lockedBy: currentUser } : obj
-    );
-    setObjects(updatedObjects);
+  // Продолжаем выполнение...
+  const updatedObjects = objects.map((obj) =>
+    obj.id === id ? { ...obj, lockedBy: currentUser } : obj,
+  );
+  setObjects(updatedObjects);
 
-    sendWebSocketMessage({
-      type: 'objectFocus',
-      objectId: id,
-      userId: currentUser
-    });
+  sendWebSocketMessage({
+    type: "objectFocus",
+    objectId: id,
+    userId: currentUser,
+  });
 
-    const centerX = obj.x + obj.width / 2;
-    const centerY = obj.y + obj.height / 2;
+  const centerX = obj.x + obj.width / 2;
+  const centerY = obj.y + obj.height / 2;
 
-    dragState.current = {
-      type: 'rotate',
-      startX: e.clientX,
-      startY: e.clientY,
-      startRotation: obj.rotation,
-      startWidth: 0,
-      startHeight: 0,
-      startLeft: centerX,
-      startTop: centerY,
-    };
-    setSelectedId(id);
+  dragState.current = {
+    type: "rotate",
+    startX: e.clientX,
+    startY: e.clientY,
+    startRotation: obj.rotation,
+    startWidth: 0,
+    startHeight: 0,
+    startLeft: centerX,
+    startTop: centerY,
   };
+  setSelectedId(id);
+};
 
   const handleDragMove = (e: MouseEvent) => {
     if (!dragState.current.type || !selectedId) return;
 
-    const obj = objects.find(o => o.id === selectedId);
+    const obj = objects.find((o) => o.id === selectedId);
     if (!obj) return;
 
-    if (dragState.current.type === 'move') {
+    if (dragState.current.type === "move") {
       const dx = e.clientX - dragState.current.startX;
       const dy = e.clientY - dragState.current.startY;
-      const newX = Math.max(0, Math.min(CANVAS_WIDTH - obj.width, dragState.current.startLeft + dx));
-      const newY = Math.max(0, Math.min(CANVAS_HEIGHT - obj.height, dragState.current.startTop + dy));
+      const newX = Math.max(
+        0,
+        Math.min(CANVAS_WIDTH - obj.width, dragState.current.startLeft + dx),
+      );
+      const newY = Math.max(
+        0,
+        Math.min(CANVAS_HEIGHT - obj.height, dragState.current.startTop + dy),
+      );
 
       updateObject(selectedId, {
         x: newX,
@@ -358,7 +444,7 @@ export const DashboardDetailPage = () => {
       });
     }
 
-    if (dragState.current.type === 'resize') {
+    if (dragState.current.type === "resize") {
       let dw = e.clientX - dragState.current.startX;
       let dh = e.clientY - dragState.current.startY;
 
@@ -366,8 +452,9 @@ export const DashboardDetailPage = () => {
       let newH = Math.max(20, dragState.current.startHeight + dh);
 
       // Сохраняем соотношение сторон для изображений
-      if (obj.type === 'image') {
-        const aspect = dragState.current.startWidth / dragState.current.startHeight;
+      if (obj.type === "image") {
+        const aspect =
+          dragState.current.startWidth / dragState.current.startHeight;
         newH = newW / aspect;
       }
 
@@ -381,11 +468,13 @@ export const DashboardDetailPage = () => {
       });
     }
 
-    if (dragState.current.type === 'rotate') {
-      const angle = Math.atan2(
-        e.clientY - dragState.current.startTop,
-        e.clientX - dragState.current.startLeft
-      ) * (180 / Math.PI);
+    if (dragState.current.type === "rotate") {
+      const angle =
+        Math.atan2(
+          e.clientY - dragState.current.startTop,
+          e.clientX - dragState.current.startLeft,
+        ) *
+        (180 / Math.PI);
       const rotation = (angle - dragState.current.startRotation) % 360;
       updateObject(selectedId, { rotation });
     }
@@ -395,9 +484,9 @@ export const DashboardDetailPage = () => {
     if (selectedId) {
       // Отправляем обновление через WebSocket
       sendWebSocketMessage({
-        type: 'boardUpdate',
+        type: "boardUpdate",
         objects: objects,
-        userId: currentUser
+        userId: currentUser,
       });
 
       // Отправляем на сервер
@@ -405,9 +494,9 @@ export const DashboardDetailPage = () => {
 
       // Отправляем сообщение о снятии фокуса
       sendWebSocketMessage({
-        type: 'objectBlur',
+        type: "objectBlur",
         objectId: selectedId,
-        userId: currentUser
+        userId: currentUser,
       });
     }
 
@@ -416,11 +505,11 @@ export const DashboardDetailPage = () => {
 
   useEffect(() => {
     if (dragState.current.type) {
-      window.addEventListener('mousemove', handleDragMove);
-      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener("mousemove", handleDragMove);
+      window.addEventListener("mouseup", handleDragEnd);
       return () => {
-        window.removeEventListener('mousemove', handleDragMove);
-        window.removeEventListener('mouseup', handleDragEnd);
+        window.removeEventListener("mousemove", handleDragMove);
+        window.removeEventListener("mouseup", handleDragEnd);
       };
     }
   }, [selectedId, dragState.current.type, objects]);
@@ -430,33 +519,33 @@ export const DashboardDetailPage = () => {
   }
 
   if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+    return <div style={{ color: "red" }}>{error}</div>;
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial' }}>
+    <div style={{ padding: "20px", fontFamily: "Arial" }}>
       <h2>Доска</h2>
 
-      <div style={{ marginBottom: '16px' }}>
-        <button onClick={() => addObject('text')}>Текст</button>
-        <button onClick={() => addObject('image')}>Изображение</button>
-        <button onClick={() => addObject('rectangle')}>Прямоугольник</button>
-        <button onClick={() => addObject('circle')}>Круг</button>
-        <button onClick={() => addObject('line')}>Линия</button>
+      <div style={{ marginBottom: "16px" }}>
+        <button onClick={() => addObject("text")}>Текст</button>
+        <button onClick={() => addObject("image")}>Изображение</button>
+        <button onClick={() => addObject("rectangle")}>Прямоугольник</button>
+        <button onClick={() => addObject("circle")}>Круг</button>
+        <button onClick={() => addObject("line")}>Линия</button>
       </div>
 
       <div
         style={{
-          position: 'relative',
+          position: "relative",
           width: CANVAS_WIDTH,
           height: CANVAS_HEIGHT,
-          border: '2px solid #333',
-          background: '#f9fafb',
-          cursor: 'default',
+          border: "2px solid #333",
+          background: "#f9fafb",
+          cursor: "default",
         }}
         onClick={handleCanvasClick}
       >
-        {objects.map(obj => {
+        {objects.map((obj) => {
           const isSelected = obj.id === selectedId;
           const isLocked = !!obj.lockedBy;
 
@@ -464,56 +553,56 @@ export const DashboardDetailPage = () => {
             <div
               key={obj.id}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 left: obj.x,
                 top: obj.y,
                 width: obj.width,
                 height: obj.height,
                 transform: `rotate(${obj.rotation}deg)`,
-                transformOrigin: 'center',
+                transformOrigin: "center",
                 border: isLocked
-                  ? '2px dashed red'
+                  ? "2px dashed red"
                   : isSelected
-                    ? '2px solid blue'
-                    : 'none',
-                cursor: isLocked ? 'not-allowed' : 'move',
-                userSelect: 'none',
+                    ? "2px solid blue"
+                    : "none",
+                cursor: isLocked ? "not-allowed" : "move",
+                userSelect: "none",
               }}
-              onMouseDown={e => handleMoveStart(obj.id, e)}
+              onMouseDown={(e) => handleMoveStart(obj.id, e)}
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={
-                obj.type === 'text'
+                obj.type === "text"
                   ? () => handleTextDoubleClick(obj.id)
                   : undefined
               }
             >
-              {obj.type === 'text' ? (
+              {obj.type === "text" ? (
                 <div
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '16px',
-                    color: '#000',
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    color: "#000",
                   }}
                 >
                   {obj.content}
                 </div>
-              ) : obj.type === 'image' ? (
+              ) : obj.type === "image" ? (
                 <img
                   src={obj.url}
                   alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
                 <div
                   style={{
-                    width: '100%',
-                    height: '100%',
+                    width: "100%",
+                    height: "100%",
                     backgroundColor: (obj as ShapeObject).color,
-                    borderRadius: obj.type === 'circle' ? '50%' : '0',
+                    borderRadius: obj.type === "circle" ? "50%" : "0",
                   }}
                 />
               )}
@@ -522,18 +611,20 @@ export const DashboardDetailPage = () => {
               {isLocked && (
                 <div
                   style={{
-                    position: 'absolute',
-                    top: '-24px',
+                    position: "absolute",
+                    top: "-24px",
                     left: 0,
-                    background: 'red',
-                    color: 'white',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap',
+                    background: "red",
+                    color: "white",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {obj.lockedBy === currentUser ? 'Вы' : `Редактирует: ${obj.lockedBy}`}
+                  {obj.lockedBy === currentUser
+                    ? "Вы"
+                    : `Редактирует: ${obj.lockedBy}`}
                 </div>
               )}
 
@@ -542,34 +633,34 @@ export const DashboardDetailPage = () => {
                   {/* Ручка изменения размера */}
                   <div
                     style={{
-                      position: 'absolute',
-                      bottom: '-6px',
-                      right: '-6px',
-                      width: '12px',
-                      height: '12px',
-                      background: 'blue',
-                      borderRadius: '50%',
-                      cursor: 'nwse-resize',
-                      border: '2px solid white',
+                      position: "absolute",
+                      bottom: "-6px",
+                      right: "-6px",
+                      width: "12px",
+                      height: "12px",
+                      background: "blue",
+                      borderRadius: "50%",
+                      cursor: "nwse-resize",
+                      border: "2px solid white",
                     }}
-                    onMouseDown={e => handleResizeStart(obj.id, e)}
+                    onMouseDown={(e) => handleResizeStart(obj.id, e)}
                   />
 
                   {/* Ручка вращения */}
                   <div
                     style={{
-                      position: 'absolute',
-                      top: '-12px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: '10px',
-                      height: '10px',
-                      background: 'green',
-                      borderRadius: '50%',
-                      cursor: 'grab',
-                      border: '2px solid white',
+                      position: "absolute",
+                      top: "-12px",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: "10px",
+                      height: "10px",
+                      background: "green",
+                      borderRadius: "50%",
+                      cursor: "grab",
+                      border: "2px solid white",
                     }}
-                    onMouseDown={e => handleRotateStart(obj.id, e)}
+                    onMouseDown={(e) => handleRotateStart(obj.id, e)}
                   />
                 </>
               )}
@@ -578,13 +669,17 @@ export const DashboardDetailPage = () => {
         })}
       </div>
 
-      <p style={{ marginTop: '12px', fontSize: '14px', color: '#666' }}>
-        • Кликните на объект, чтобы выбрать<br />
-        • Перетаскивайте объект, чтобы переместить<br />
-        • Тяните за синюю точку — изменить размер<br />
-        • Тяните за зелёную точку — повернуть<br />
-        • Двойной клик на текст — редактировать<br />
-        • Объект в фокусе другого пользователя нельзя редактировать
+      <p style={{ marginTop: "12px", fontSize: "14px", color: "#666" }}>
+        • Кликните на объект, чтобы выбрать
+        <br />
+        • Перетаскивайте объект, чтобы переместить
+        <br />
+        • Тяните за синюю точку — изменить размер
+        <br />
+        • Тяните за зелёную точку — повернуть
+        <br />
+        • Двойной клик на текст — редактировать
+        <br />• Объект в фокусе другого пользователя нельзя редактировать
       </p>
     </div>
   );

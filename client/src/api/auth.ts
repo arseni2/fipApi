@@ -65,3 +65,27 @@ export const signInApi = async (payload: IPayloadSignIn): Promise<IResponseSignI
     throw new Error('Network error occurred during sign in');
   }
 }
+
+// Функция для получения информации о текущем пользователе
+export const getCurrentUser = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Токен отсутствует');
+  }
+
+  // Если ID нет в токене, запросим информацию с сервера
+  const response = await fetch(`${API_URL}/auth/me`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ошибка запроса: ${response.status}`);
+  }
+
+  const userData = await response.json();
+  return userData; 
+};

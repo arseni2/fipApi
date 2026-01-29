@@ -110,5 +110,50 @@
       }
     ],
     "publicHash": "uKyaK3h8Z4Sk"
+  },
+  {
+    "id": "f322a452-1ffa-445d-bafd-c55f28a05957",
+    "title": "editBoard",
+    "ownerId": "e3ebd3f1-7d47-4b36-a182-3dd289c2bcd0",
+    "editors": [
+      "e3ebd3f1-7d47-4b36-a182-3dd289c2bcd0",
+      "13e003e5-25fc-42e8-9b86-e409a14c32ca"
+    ],
+    "likes": 0,
+    "objects": [
+      {
+        "id": "obj-1769681738412",
+        "type": "text",
+        "x": 187,
+        "y": 360,
+        "width": 68,
+        "height": 86,
+        "rotation": -171.4391104288354,
+        "content": "666666",
+        "lockedBy": "e3ebd3f1-7d47-4b36-a182-3dd289c2bcd0"
+      },
+      {
+        "id": "obj-1769681766289",
+        "type": "rectangle",
+        "x": 327,
+        "y": 157,
+        "width": 100,
+        "height": 80,
+        "rotation": 0,
+        "color": "#3b82f6",
+        "lockedBy": "13e003e5-25fc-42e8-9b86-e409a14c32ca"
+      },
+      {
+        "id": "obj-1769682197389",
+        "type": "rectangle",
+        "x": 449,
+        "y": 387,
+        "width": 269,
+        "height": 179,
+        "rotation": 31.406054832607385,
+        "color": "#3b82f6",
+        "lockedBy": "13e003e5-25fc-42e8-9b86-e409a14c32ca"
+      }
+    ]
   }
 ]
