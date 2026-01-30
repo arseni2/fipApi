@@ -2,6 +2,10 @@ import Fastify from "fastify";
 import {serializerCompiler, validatorCompiler, ZodTypeProvider} from "fastify-type-provider-zod";
 import app from "./app";
 import cors from '@fastify/cors';
+import path from "path";
+import multipart from '@fastify/multipart';
+
+
 
 const fastify = Fastify({ logger: true })
   .withTypeProvider<ZodTypeProvider>()
@@ -22,6 +26,16 @@ fastify.setSchemaErrorFormatter((errors) => {
   }
 
   return result
+})
+fastify.register(multipart, {
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max
+  },
+});
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname,"../", "src", 'static'),
+  prefix: '/static/', // optional: default '/'
+  //constraints: { host: '*' }
 })
 
 fastify.register(app)

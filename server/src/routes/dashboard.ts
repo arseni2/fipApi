@@ -5,6 +5,8 @@ import { dashboardService } from '../services/dashboard';
 import { authenticate } from './auth';
 import { DashboardSchema } from '../db/dashboard/repo';
 import { usersRepo } from '../db/users/repo';
+import path from 'path';
+import * as fs from 'node:fs/promises';
 
 const createSchema = z.object({
   title: z.string().min(1, 'Название обязательно'),
@@ -32,6 +34,64 @@ const updateBoardBodySchema = z.object({
 });
 
 const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.withTypeProvider<ZodTypeProvider>().post(
+    '/dashboard/upload-image/upload',
+    {
+      onRequest: [authenticate],
+      schema: {
+        consumes: ['multipart/form-data'],
+      },
+    },
+    async (request, reply) => {
+      if (!request.user) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+  
+      try {
+        const data = await request.file({
+          limits: { fileSize: 5 * 1024 * 1024 },
+        });
+  
+        if (!data) {
+          return reply.status(400).send({ error: 'No file uploaded' });
+        }
+  
+        const { mimetype, file } = data;
+  
+        if (!mimetype?.startsWith('image/')) {
+          return reply.status(400).send({ error: 'File must be an image' });
+        }
+  
+        // Extract and sanitize extension
+        const ext = mimetype.split('/')[1]?.split('+')[0]?.replace(/[^a-z0-9]/gi, '') || 'jpg';
+        const filename = `${Date.now()}.${ext.toLowerCase()}`;
+  
+        // Adjust path: assuming static folder is at project root
+        // If your structure is: /project/server/src/routes/... then:
+        const staticDir = path.join(__dirname,"../", "../", "src", 'static');
+        console.log(staticDir)
+        const filePath = path.join(staticDir, filename);
+  
+        // Ensure directory exists
+        await fs.mkdir(staticDir, { recursive: true });
+  
+        // ✅ Universal way to read stream as buffer
+        const chunks: Buffer[] = [];
+        for await (const chunk of file) {
+          chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+  
+        await fs.writeFile(filePath, buffer);
+  
+        return reply.send({ url: `http://127.0.0.1:3000/static/${filename}` });
+      } catch (error) {
+        console.error('Image upload error:', error);
+        return reply.status(500).send({ error: 'Failed to upload image' });
+      }
+    }
+  );
+
   // 1. Создать доску
   fastify.withTypeProvider<ZodTypeProvider>().post(
     '/dashboard/create',
@@ -152,7 +212,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.withTypeProvider<ZodTypeProvider>().get(
     '/dashboard/public',
     {
-      onRequest: [authenticate],
+      //onRequest: [authenticate],
       schema: {
         querystring: sortSchema,
         response: {
@@ -166,11 +226,11 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      if (!request.user) {
-        return reply.status(401).send({ error: 'Unauthorized' });
-      }
+      // if (!request.user) {
+      //   return reply.status(401).send({ error: 'Unauthorized' });
+      // }
       const { sort = 'desc' } = request.query;
-      const dashboards = await dashboardService.sortPublicByLike(sort, request.user.id);
+      const dashboards = await dashboardService.sortPublicByLike(sort);
       return reply.send({ dashboards });
     }
   );

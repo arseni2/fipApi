@@ -1,5 +1,5 @@
 import { dashboardRepo } from '../db/dashboard/repo';
-import { nanoid } from 'nanoid';
+import {v4 as uuidv4} from 'uuid';
 
 class DashboardService {
   async create(title: string, userId: string) {
@@ -25,7 +25,7 @@ class DashboardService {
       throw new Error('Access denied');
     }
     if (!dashboard.publicHash) {
-      dashboard.publicHash = nanoid(12); // генерируем хеш
+      dashboard.publicHash = uuidv4(); 
       await dashboardRepo.update(dashboard);
     }
     return dashboard;
@@ -49,14 +49,14 @@ class DashboardService {
     return dashboard;
   }
 
-  async getAllPublic(userId: string) {
+  async getAllPublic() {
     const dashboards = await dashboardRepo.getAll();
     // Return only dashboards that are public (have publicHash) or owned by the user
     return dashboards.filter(d => d.publicHash != null);
   }
 
-  async sortPublicByLike(sort: 'asc' | 'desc', userId: string) {
-    const dashboards = await this.getAllPublic(userId);
+  async sortPublicByLike(sort: 'asc' | 'desc') {
+    const dashboards = await this.getAllPublic();
     return dashboards.toSorted((a, b) =>
       sort === 'asc' ? a.likes - b.likes : b.likes - a.likes
     );

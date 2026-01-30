@@ -25,7 +25,7 @@ interface TextObject extends BaseObject {
 
 interface ImageObject extends BaseObject {
   type: "image";
-  url: string;
+  url: string | null;
 }
 
 interface ShapeObject extends BaseObject {
@@ -56,6 +56,7 @@ export const DashboardDetailPage = () => {
     startRotation: number;
     startLeft: number;
     startTop: number;
+    hasMoved: boolean; // ← добавлено
   }>({
     type: null,
     startX: 0,
@@ -65,6 +66,7 @@ export const DashboardDetailPage = () => {
     startRotation: 0,
     startLeft: 0,
     startTop: 0,
+    hasMoved: false,
   });
   console.log(currentUser)
   // Инициализация WebSocket соединения
@@ -144,33 +146,39 @@ export const DashboardDetailPage = () => {
   }, [id, navigate, currentUser]);
 
   // Обработка сообщений от WebSocket
-const handleWebSocketMessage = (message: any) => {
-  switch (message.type) {
-    case "boardUpdate":
-      setObjects(message.objects);
-      break;
-    case "objectFocus":
-      // Обновляем объект, установив lockedBy для другого пользователя
-      setObjects((prev) =>
-        prev.map((obj) =>
-          obj.id === message.objectId
-            ? { ...obj, lockedBy: message.userId } // Устанавливаем ID пользователя, который в фокусе
-            : obj,
-        ),
-      );
-      break;
-    case "objectBlur":
-      // Снимаем фокус с объекта
-      setObjects((prev) =>
-        prev.map((obj) =>
-          obj.id === message.objectId ? { ...obj, lockedBy: undefined } : obj,
-        ),
-      );
-      break;
-    default:
-      break;
-  }
-};
+  const handleWebSocketMessage = (message: any) => {
+    switch (message.type) {
+      case "boardUpdate":
+        setObjects(message.objects);
+        break;
+  
+      case "objectFocus":
+        // Если другой пользователь берёт фокус на объект, который у нас выделен — снимаем выделение
+        if (message.objectId === selectedId && message.userId !== currentUser) {
+          setSelectedId(null);
+        }
+        setObjects((prev) =>
+          prev.map((obj) =>
+            obj.id === message.objectId ? { ...obj, lockedBy: message.userId } : obj
+          )
+        );
+        break;
+  
+      case "objectBlur":
+        setObjects((prev) =>
+          prev.map((obj) =>
+            obj.id === message.objectId ? { ...obj, lockedBy: undefined } : obj
+          )
+        );
+        if (message.objectId === selectedId) {
+          setSelectedId(null);
+        }
+        break;
+  
+      default:
+        break;
+    }
+  };
 
   // Отправка сообщения через WebSocket
   const sendWebSocketMessage = (message: any) => {
@@ -216,7 +224,7 @@ const handleWebSocketMessage = (message: any) => {
           width: 200,
           height: 150,
           rotation: 0,
-          url: "https://via.placeholder.com/200x150?text=Img",
+          url: null,
         };
         break;
       case "rectangle":
@@ -274,6 +282,8 @@ const handleWebSocketMessage = (message: any) => {
   };
 
   const handleCanvasClick = () => {
+    // blurCurrentObject();
+
     setSelectedId(null);
   };
 
@@ -308,6 +318,7 @@ const handleWebSocketMessage = (message: any) => {
   const obj = objects.find((o) => o.id === id) as TextObject | undefined;
   // Разрешаем редактирование, если объект не заблокирован ИЛИ заблокирован текущим пользователем
   if (obj && obj.lockedBy && obj.lockedBy !== currentUser) return;
+  blurCurrentObject(); // ← добавлено
 
   const newContent = prompt("Редактировать текст:", obj.content);
   if (newContent !== null) {
@@ -331,7 +342,7 @@ const handleMoveStart = (id: string, e: React.MouseEvent) => {
   const obj = objects.find((o) => o.id === id);
   // Разрешаем взаимодействие, если объект не заблокирован ИЛИ заблокирован текущим пользователем
   if (!obj || (obj.lockedBy && obj.lockedBy !== currentUser)) return;
-
+  blurCurrentObject();
   // Продолжаем выполнение...
   const updatedObjects = objects.map((obj) =>
     obj.id === id ? { ...obj, lockedBy: currentUser } : obj,
@@ -361,7 +372,7 @@ const handleMoveStart = (id: string, e: React.MouseEvent) => {
   e.stopPropagation();
   const obj = objects.find((o) => o.id === id);
   if (!obj || (obj.lockedBy && obj.lockedBy !== currentUser)) return;
-
+  blurCurrentObject();
   // Продолжаем выполнение...
   const updatedObjects = objects.map((obj) =>
     obj.id === id ? { ...obj, lockedBy: currentUser } : obj,
@@ -391,6 +402,7 @@ const handleRotateStart = (id: string, e: React.MouseEvent) => {
   e.stopPropagation();
   const obj = objects.find((o) => o.id === id);
   if (!obj || (obj.lockedBy && obj.lockedBy !== currentUser)) return;
+  blurCurrentObject(); // ← добавлено
 
   // Продолжаем выполнение...
   const updatedObjects = objects.map((obj) =>
@@ -421,11 +433,12 @@ const handleRotateStart = (id: string, e: React.MouseEvent) => {
 };
 
   const handleDragMove = (e: MouseEvent) => {
+    e.stopPropagation()
     if (!dragState.current.type || !selectedId) return;
 
     const obj = objects.find((o) => o.id === selectedId);
     if (!obj) return;
-
+    dragState.current.hasMoved = true;
     if (dragState.current.type === "move") {
       const dx = e.clientX - dragState.current.startX;
       const dy = e.clientY - dragState.current.startY;
@@ -480,27 +493,32 @@ const handleRotateStart = (id: string, e: React.MouseEvent) => {
     }
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: any) => {
+    e.stopPropagation()
     if (selectedId) {
-      // Отправляем обновление через WebSocket
+      // Отправляем обновление доски
       sendWebSocketMessage({
         type: "boardUpdate",
         objects: objects,
         userId: currentUser,
       });
-
-      // Отправляем на сервер
       sendBoardUpdate(objects);
-
-      // Отправляем сообщение о снятии фокуса
-      sendWebSocketMessage({
-        type: "objectBlur",
-        objectId: selectedId,
-        userId: currentUser,
-      });
+  
+      // Снимаем фокус
+      blurCurrentObject();
     }
-
-    dragState.current.type = null;
+  
+    dragState.current = {
+      type: null,
+      startX: 0,
+      startY: 0,
+      startWidth: 0,
+      startHeight: 0,
+      startRotation: 0,
+      startLeft: 0,
+      startTop: 0,
+      hasMoved: false,
+    };
   };
 
   useEffect(() => {
@@ -521,6 +539,26 @@ const handleRotateStart = (id: string, e: React.MouseEvent) => {
   if (error) {
     return <div style={{ color: "red" }}>{error}</div>;
   }
+  const blurCurrentObject = () => {
+    if (selectedId && ws?.readyState === WebSocket.OPEN) {
+      // Убираем lockedBy у текущего объекта (только если он был наш)
+      const currentObj = objects.find(o => o.id === selectedId);
+      if (currentObj && currentObj.lockedBy === currentUser) {
+        const updatedObjects = objects.map(o =>
+          o.id === selectedId ? { ...o, lockedBy: undefined } : o
+        );
+        setObjects(updatedObjects);
+  
+        // Отправляем objectBlur
+        sendWebSocketMessage({
+          type: "objectBlur",
+          objectId: selectedId,
+          userId: currentUser,
+        });
+      }
+      setSelectedId(null);
+    }
+  };
 
   return (
     <div style={{ padding: "20px", fontFamily: "Arial" }}>
@@ -591,11 +629,68 @@ const handleRotateStart = (id: string, e: React.MouseEvent) => {
                   {obj.content}
                 </div>
               ) : obj.type === "image" ? (
-                <img
-                  src={obj.url}
-                  alt=""
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                <>
+                  {obj.url
+                  ? <img src={obj.url} width={obj.width} height={obj.height} />
+                  : <input
+                  multiple={false}
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !obj.id) return;
+                
+                    const formData = new FormData();
+                    formData.append('image', file);
+                
+                    try {
+                      const token = localStorage.getItem('token');
+                      const res = await fetch('http://127.0.0.1:3000/dashboard/upload-image/upload', {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `${token}`,
+                          // ⚠️ Do NOT set Content-Type — let browser set it with boundary
+                        },
+                        body: formData,
+                      });
+                
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+                        alert(`Ошибка загрузки: ${err.error}`);
+                        return;
+                      }
+                
+                      const data = await res.json();
+                      const imageUrl = data.url; // e.g. "/static/123456789.png"
+                
+                      // Update local state: set url on this image object
+                      const updatedObjects = objects.map((o) =>
+                        o.id === obj.id ? { ...o, url: imageUrl } : o
+                      );
+                      setObjects(updatedObjects);
+                
+                      // Sync via WebSocket
+                      sendWebSocketMessage({
+                        type: 'boardUpdate',
+                        objects: updatedObjects,
+                        userId: currentUser,
+                      });
+                
+                      // Save to backend
+                      if (id) {
+                        await updateBoardApi({ id, objects: updatedObjects });
+                      }
+                    } catch (error) {
+                      console.error('Image upload error:', error);
+                      alert('Не удалось загрузить изображение');
+                    } finally {
+                      // Clear input so user can re-select same file
+                      e.target.value = '';
+                    }
+                  }}
                 />
+                  }
+                </>
               ) : (
                 <div
                   style={{
@@ -628,7 +723,7 @@ const handleRotateStart = (id: string, e: React.MouseEvent) => {
                 </div>
               )}
 
-              {isSelected && !isLocked && (
+      
                 <>
                   {/* Ручка изменения размера */}
                   <div
@@ -663,7 +758,7 @@ const handleRotateStart = (id: string, e: React.MouseEvent) => {
                     onMouseDown={(e) => handleRotateStart(obj.id, e)}
                   />
                 </>
-              )}
+            
             </div>
           );
         })}
