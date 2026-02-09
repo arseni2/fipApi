@@ -17,6 +17,7 @@ export const signUpApi = async (payload: IPayloadSignUp): Promise<IResponseSignU
       method: "POST",
       body: JSON.stringify(payload),
       headers: {
+        "ClientId": "123",
         "Content-Type": "application/json",
       }
     });
@@ -50,6 +51,7 @@ export const signInApi = async (payload: IPayloadSignIn): Promise<IResponseSignI
       method: "POST",
       body: JSON.stringify(payload),
       headers: {
+        "ClientId": "123",
         "Content-Type": "application/json"
       }
     });
@@ -77,6 +79,7 @@ export const getCurrentUser = async () => {
   const response = await fetch(`${API_URL}/auth/me`, {
     method: 'GET',
     headers: {
+      "ClientId": "123",
       'Authorization': `${token}`,
       'Content-Type': 'application/json',
     },

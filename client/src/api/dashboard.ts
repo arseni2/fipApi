@@ -18,6 +18,7 @@ export const createDashboardApi = async (payload: ICreateDashboard) => {
     const res = await fetch(`${API_URL}/dashboard/create`, {
       method: 'POST',
       headers: {
+        "ClientId": "123",
         'Content-Type': 'application/json',
         'Authorization': localStorage.getItem('token') || '',
       },
@@ -42,6 +43,7 @@ export const likeDashboardApi = async (payload: ILikeDashboard) => {
     const res = await fetch(`${API_URL}/dashboard/like`, {
       method: 'POST',
       headers: {
+        "ClientId": "123",
         'Content-Type': 'application/json',
         'Authorization': localStorage.getItem('token') || '',
       },
@@ -66,6 +68,7 @@ export const makePublicApi = async (payload: IMakePublic) => {
     const res = await fetch(`${API_URL}/dashboard/make-public`, {
       method: 'POST',
       headers: {
+        "ClientId": "123",
         'Content-Type': 'application/json',
         'Authorization': localStorage.getItem('token') || '',
       },
@@ -89,6 +92,7 @@ export const getPublicDashboardsApi = async (sort: 'asc' | 'desc' = 'desc') => {
   try {
     const res = await fetch(`${API_URL}/dashboard/public?sort=${sort}`, {
       headers: {
+        "ClientId": "123",
         'Authorization': localStorage.getItem('token') || '',
       }
     });
@@ -110,6 +114,7 @@ export const getEditableDashboardsApi = async () => {
   try {
     const res = await fetch(`${API_URL}/dashboard/editable`, {
       headers: {
+        "ClientId": "123",
         'Authorization': localStorage.getItem('token') || '',
       },
     });
@@ -131,6 +136,7 @@ export const getDashboardByIdApi = async (id: string) => {
   try {
     const res = await fetch(`${API_URL}/dashboard/${id}`, {
       headers: {
+        "ClientId": "123",
         'Authorization': localStorage.getItem('token') || '',
       },
     });
@@ -154,6 +160,7 @@ export const updateBoardApi = async (payload: { id: string; objects: any[] }) =>
     const res = await fetch(`${API_URL}/dashboard/${id}`, {
       method: 'PUT',
       headers: {
+        "ClientId": "123",
         'Content-Type': 'application/json',
         'Authorization': localStorage.getItem('token') || '',
       },
@@ -178,6 +185,7 @@ export const shareDashboardApi = async (payload: { id: string; email: string }) 
     const res = await fetch(`${API_URL}/dashboard/share`, {
       method: 'POST',
       headers: {
+        "ClientId": "123",
         'Content-Type': 'application/json',
         'Authorization': localStorage.getItem('token') || '',
       },
@@ -199,7 +207,11 @@ export const shareDashboardApi = async (payload: { id: string; email: string }) 
 // Получить публичную доску по hash (без авторизации)
 export const getPublicDashboardByHashApi = async (hash: string) => {
   try {
-    const res = await fetch(`${API_URL}/board/${hash}`);
+    const res = await fetch(`${API_URL}/board/${hash}`, {
+      headers: {
+        "ClientId": "123",
+      }
+    });
 
     if (!res.ok) {
       const errorData = await res.json();
