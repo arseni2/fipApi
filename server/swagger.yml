@@ -1,0 +1,603 @@
+openapi: 3.0.0
+info:
+  title: Профессиональный Сервис Досок
+  description: API для управления досками и аутентификации пользователей
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Локальный сервер
+paths:
+  /auth/signup:
+    post:
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email пользователя
+                name:
+                  type: string
+                  minLength: 1
+                  pattern: '^[a-zA-Z]+$'
+                  description: Имя пользователя (только латинские буквы)
+                password:
+                  type: string
+                  minLength: 8
+                  pattern: '^(?=.*\d)(?=.*[^a-zA-Z0-9]).*$'
+                  description: Пароль (минимум 8 символов, одна цифра и один спецсимвол)
+              required:
+                - email
+                - name
+                - password
+      responses:
+        '201':
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [OK]
+        '400':
+          description: Ошибки валидации
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+  /auth/signin:
+    post:
+      summary: Аутентификация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email пользователя
+                password:
+                  type: string
+                  minLength: 1
+                  description: Пароль пользователя
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: Токен аутентификации
+        '400':
+          description: Неправильный email или пароль
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: object
+                    properties:
+                      email:
+                        type: array
+                        items:
+                          type: string
+  /auth/me:
+    get:
+      summary: Получение информации о текущем пользователе
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Информация о пользователе
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Идентификатор пользователя
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+  /dashboard/upload-image/upload:
+    post:
+      summary: Загрузка изображения
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: string
+                  format: binary
+                  description: Изображение для загрузки (до 5MB)
+      responses:
+        '200':
+          description: URL загруженного изображения
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                    description: URL загруженного изображения
+        '400':
+          description: Файл не загружен или не является изображением
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Описание ошибки
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+        '500':
+          description: Ошибка сервера при загрузке
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Описание ошибки
+  /dashboard/create:
+    post:
+      summary: Создание новой доски
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  description: Название доски
+              required:
+                - title
+      responses:
+        '201':
+          description: Созданная доска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+                  statusCode:
+                    type: integer
+                    example: 400
+                  error:
+                    type: string
+                    enum: [Validation Error]
+                required:
+                  - errors
+                  - statusCode
+                  - error       
+  /dashboard/make-public:
+    post:
+      summary: Сделать доску публичной
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  minLength: 1
+                  description: Идентификатор доски
+              required:
+                - id
+      responses:
+        '200':
+          description: Обновленная доска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+        '400':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Not found]            
+  /dashboard/share:
+    post:
+      summary: Поделиться доской с другим пользователем
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  minLength: 1
+                  description: Идентификатор доски
+                email:
+                  type: string
+                  format: email
+                  description: Email пользователя, с которым поделиться
+              required:
+                - id
+                - email
+      responses:
+        '200':
+          description: Обновленная доска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Пользователь не найден
+  /dashboard/like:
+    post:
+      summary: Поставить лайк доске
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  minLength: 1
+                  description: Идентификатор доски
+              required:
+                - id
+      responses:
+        '200':
+          description: Количество лайков
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  likes:
+                    type: number
+                    description: Количество лайков
+        '401':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+        '400':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Not found]            
+  /dashboard/public:
+    get:
+      summary: Получить публичные доски
+      parameters:
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Сортировка (по умолчанию desc)
+      responses:
+        '200':
+          description: Массив публичных досок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dashboards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dashboard'
+  /dashboard/editable:
+    get:
+      summary: Получить редактируемые доски
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Массив редактируемых досок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dashboards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dashboard'
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+  /dashboard/{id}:
+    get:
+      summary: Получить конкретную доску по ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Идентификатор доски
+      responses:
+        '200':
+          description: Конкретная доска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+        '400':
+          description: Доска не найдена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Доска не найдена
+    put:
+      summary: Обновить доску
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Идентификатор доски
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                objects:
+                  type: array
+                  items:
+                    type: object
+                    description: JSON объекты доски
+              required:
+                - objects
+      responses:
+        '200':
+          description: Обновленная доска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '401':
+          description: Неавторизованный доступ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    enum: [Unauthorized]
+        '400':
+          description: Доступ запрещен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  /board/{hash}:
+    get:
+      summary: Получить публичную доску по hash
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Хэш доски
+      responses:
+        '200':
+          description: Публичная доска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+        '400':
+          description: Доска не найдена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Доска не найдена
+components:
+  schemas:
+    Dashboard:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Идентификатор доски
+        title:
+          type: string
+          description: Название доски
+        ownerId:
+          type: string
+          description: Идентификатор пользователя-владельца
+        isPublic:
+          type: boolean
+          description: Является ли доска публичной
+        editors:
+          type: array
+          items:
+            type: string
+          description: Массив идентификаторов пользователей, с которыми поделились
+        likes:
+          type: number
+          description: Количество лайков
+        objects:
+          type: array
+          items:
+            type: object
+          description: JSON объекты доски
+        publicHash:
+          type: string
+          description: Хэш для публичного доступа
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Токен аутентификации в формате JWT

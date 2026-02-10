@@ -9,7 +9,7 @@ class DashboardService {
   async like(id: string, userId: string): Promise<number> {
     const dashboard = await dashboardRepo.findById(id);
     if (!dashboard) {
-      throw new Error('Dashboard not found');
+      throw 'Dashboard not found';
     }
     dashboard.likes += 1;
     await dashboardRepo.update(dashboard);
@@ -19,10 +19,10 @@ class DashboardService {
   async makePublic(id: string, userId: string) {
     const dashboard = await dashboardRepo.findById(id);
     if (!dashboard) {
-      throw new Error('Dashboard not found');
+      throw 'Dashboard not found';
     }
     if (dashboard.ownerId !== userId) {
-      throw new Error('Access denied');
+      throw 'Access denied';
     }
     if (!dashboard.publicHash) {
       dashboard.publicHash = uuidv4(); 
@@ -34,10 +34,10 @@ class DashboardService {
   async share(id: string, ownerId: string, userId: string) {
     const dashboard = await dashboardRepo.findById(id);
     if (!dashboard) {
-      throw new Error('Dashboard not found');
+      throw 'Dashboard not found';
     }
     if (dashboard.ownerId !== ownerId) {
-      throw new Error('Access denied');
+      throw 'Access denied';
     }
 
     // Добавляем пользователя в список редакторов, если его там еще нет
@@ -71,12 +71,12 @@ class DashboardService {
   async getById(id: string, userId: string) {
     const dashboard = await dashboardRepo.findById(id);
     if (!dashboard) {
-      throw new Error('Dashboard not found');
+      throw 'Dashboard not found';
     }
 
     // Проверяем, имеет ли пользователь доступ к доске
     if (dashboard.ownerId !== userId && !dashboard.editors.includes(userId)) {
-      throw new Error('Access denied');
+      throw 'Access denied';
     }
 
     return dashboard;
